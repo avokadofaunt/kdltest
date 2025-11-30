@@ -1,0 +1,102 @@
+import re
+from playwright.sync_api import Browser, Page, expect
+
+def test_email_send(page):
+    page.goto("http://192.168.204.66/laport_uat/#/auth")
+    page.wait_for_load_state("networkidle", timeout=60000)
+    expect(page.get_by_role("heading", name="LAPORT")).to_be_visible()
+    page.get_by_role("textbox", name="Логин").fill('autoreg')
+    page.get_by_role("textbox", name="Пароль").fill('123')
+    page.get_by_role("button", name="Войти").click()
+    page.wait_for_load_state("networkidle", timeout=60000)
+    page.wait_for_selector("lap-card", timeout=200000)
+    expect(page.locator("lap-card")).to_contain_text("Поиск заказов")
+
+    page.locator("#inOrderNumber").fill("7000329110")
+    page.get_by_role("button", name="Поиск").click()
+    page.get_by_role("gridcell", name="7000329110").click()
+    page.get_by_role("button", name="").click()
+    page.get_by_role("button", name="Данные пациента").click()
+    page.locator("#inNumber").fill(".")
+    page.locator("#igFamily").click()
+
+    page.get_by_title("Выбор услуг").click()
+    page.get_by_role("textbox", name="Фильтр").click()
+    page.get_by_role("textbox", name="Фильтр").fill("алт")
+    page.get_by_role("gridcell", name="Аланинаминотрансфераза (АЛТ)").click()
+    expect(page.locator('#inNumber')).to_have_value(re.compile(r"\d+"))
+    ordernumber = page.locator("#inNumber").input_value()
+    page.get_by_role("button", name="Выбрать").click()
+    page.get_by_role("button", name="").click()
+    page.get_by_role("button", name="Пропустить").click()
+    barcode = ordernumber + '01'
+    page.get_by_role("button", name="Закрыть").click()
+
+    page.get_by_role("button", name="Передать").click()
+    page.get_by_role("button", name="Пропустить").click()
+    page.get_by_role("button", name="Контейнеры").click()
+    page.get_by_role("menuitem", name="Сканирование контейнеров").click()
+    page.get_by_text("ПЖК Пробирка с желтой крышкой").click()
+    page.get_by_role("textbox", name="Штрих-код").fill(barcode)
+    page.get_by_role("textbox", name="Штрих-код").press("Enter")
+    expect(page.get_by_label("Анализаторы")).to_contain_text("(ОАИ) AU-58 11 в Москве")
+
+    page.goto("http://192.168.204.66:57774/home/trakcare/uat/web/csp/logon.csp")
+    page.wait_for_timeout(2000)
+    page.get_by_role("textbox", name="Enter your Username here").fill("demo")
+    page.get_by_role("textbox", name="Enter your private password").fill("demo")
+    page.get_by_role("button", name="Вход").click()
+    page.wait_for_timeout(2000)
+    page.get_by_text("Москва").click()
+
+    page.wait_for_timeout(5000)
+
+    page.locator("#eprmenu").content_frame.get_by_text("Аналитический этап").click()
+    page.locator("#eprmenu").content_frame.get_by_text("Ввод результатов").click()
+    expect(page.locator("#TRAK_main").content_frame.locator("#cLBEpisodeNo")).to_contain_text("№ эпизода")
+    page.locator("#TRAK_main").content_frame.locator("#LBEpisodeNo").fill(ordernumber)
+    page.wait_for_timeout(2000)
+    page.locator("#TRAK_main").content_frame.get_by_role("button", name="Найти").click()
+    page.locator("#TRAK_main").content_frame.locator("#TableEditz1").click()
+    page.locator("#TRAK_main").content_frame.locator("#lbcti118_704_LBTSIValue").fill("39")
+    page.locator("#TRAK_main").content_frame.get_by_role("button", name="Авторизовать", exact=True).click()
+    expect(page.locator("#TRAK_main").content_frame.locator("#notification_container")).to_contain_text("Статус: Авторизован")
+
+    page.locator("#eprmenu").content_frame.get_by_text("Постаналитика").click()
+    page.locator("#eprmenu").content_frame.get_by_text("Хранение образцов").click()
+
+    page.locator("#TRAK_main").content_frame.locator("#Scheme").fill("Москва. ОАИ")
+    page.locator("#TRAK_main").content_frame.locator("#Scheme").press("Enter")
+    page.locator("#TRAK_main").content_frame.locator("#LookupRow1").get_by_role("cell", name="Москва. ОАИ").click()
+    page.locator("#TRAK_main").content_frame.get_by_role("button", name="Найти").click()
+    page.locator("#TRAK_main").content_frame.get_by_role("row", name="70420 Москва-ПЖК-70420 Москва. ОАИ Москва",exact=True).get_by_role("link").click()
+    page.locator("#TRAK_main").content_frame.get_by_role("textbox", name="Добавить Образец").press("ControlOrMeta+м")
+    page.locator("#TRAK_main").content_frame.get_by_role("textbox", name="Добавить Образец").fill(ordernumber + "-01")
+    page.locator("#TRAK_main").content_frame.get_by_role("button", name="Записать").click()
+
+    page.goto("http://192.168.204.66/laport_uat/#/auth")
+    page.wait_for_selector("lap-card", timeout=200000)
+    expect(page.locator("lap-card")).to_contain_text("Поиск заказов")
+
+    page.locator("#inOrderNumber").fill(ordernumber)
+    page.get_by_role("button", name="Поиск").click()
+    page.get_by_role("gridcell", name=ordernumber).click()
+    page.get_by_role("button", name="").click()
+    expect(page.locator("#selected-research-table-container")).to_contain_text(
+        "4.1.A1.201 Аланинаминотрансфераза (АЛТ)")
+
+    page.get_by_title("Выбор услуг").click()
+    page.get_by_role("textbox", name="Фильтр").fill("инсулин")
+    page.get_by_role("gridcell", name="Инсулин", exact=True).click()
+    page.get_by_role("button", name="ОК").click()
+    page.get_by_role("button", name="Выбрать").click()
+
+    page.get_by_role("button", name="Передать").click()
+    page.get_by_role("button", name="Пропустить").click()
+
+    page.get_by_text("Быстрый поиск").click()
+    page.get_by_role("textbox").nth(1).click()
+    page.get_by_role("textbox").nth(1).fill("доза")
+    page.get_by_role("option", name="Дозаказ").click()
+    page.get_by_role("button", name="Поиск").click()
+    expect(page.locator("tbody")).to_contain_text(ordernumber)
