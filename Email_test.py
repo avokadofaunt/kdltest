@@ -95,4 +95,5 @@ def test_email_send(page):
     page.get_by_label("", exact=True).locator("p-dropdown").filter(has_text="...").get_by_role("button").click()
     page.get_by_role("option", name="MOW 1 Сервер KDL").click()
     page.get_by_role("button", name="Отправить", exact=True).click()
+
     expect(page.get_by_role("alert")).to_contain_text("Письмо с результатами заказа №" + ordernumber + " успешно отправлено")
